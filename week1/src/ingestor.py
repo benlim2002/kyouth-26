@@ -2,7 +2,7 @@ from pathlib import Path
 import email
 import quopri
 
-
+# igest mhtml files and extract html content
 def ingest_all_mhtml(input_dir, output_dir):
     input_dir = Path(input_dir)
     output_dir = Path(output_dir)
@@ -23,7 +23,7 @@ def ingest_all_mhtml(input_dir, output_dir):
     failed = 0
 
     if not files:
-        print("\n⚠️ No MHTML files found in input directory.")
+        print("\n⚠️ No MHTML files found in input directory.") # just to be safe
         print("\nFailed due to no files found.")
         return
 

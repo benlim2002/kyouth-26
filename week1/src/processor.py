@@ -9,6 +9,7 @@ class JobListing(BaseModel):
     company: str
     description: str
 
+# extract source_id from og:url meta tag
 def extract_source_id(soup: BeautifulSoup):
     og_url = soup.find("meta", property="og:url")
 
@@ -18,7 +19,7 @@ def extract_source_id(soup: BeautifulSoup):
     url = og_url["content"].rstrip("/")
     return url.split("/")[-1]
 
-
+# main processor function
 def process_all_html(input_dir, output_dir):
     input_dir = Path(input_dir)
     output_dir = Path(output_dir)

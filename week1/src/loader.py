@@ -3,6 +3,7 @@ import json
 import sqlite3
 
 
+# setup db schema
 def init_db(conn):
     cursor = conn.cursor()
 
@@ -19,6 +20,7 @@ def init_db(conn):
     conn.commit()
 
 
+# main loader function
 def load_all_jsons(input_dir, output_dir):
     input_dir = Path(input_dir)
     output_dir = Path(output_dir)
