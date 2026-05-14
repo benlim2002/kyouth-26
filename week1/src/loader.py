@@ -1,21 +1,18 @@
 from pathlib import Path
 import json
 import sqlite3
+import logging
+import hashlib
 
+
+def load_sql(path):
+    return open(path, "r", encoding="utf-8").read()
 
 # setup db schema
 def init_db(conn):
     cursor = conn.cursor()
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS jobs (
-            source_id TEXT PRIMARY KEY,
-            job_title TEXT,
-            company TEXT,
-            description TEXT,
-            tech_stack TEXT DEFAULT NULL
-        )
-    """)
+    cursor.execute(load_sql("queries/create_table.sql"))
 
     conn.commit()
 
@@ -40,34 +37,36 @@ def load_all_jsons(input_dir, output_dir):
     inserted = 0
     skipped = 0
 
-    print("🥇 Gold: Loading data into SQLite...\n")
+    logging.info("🥇 GOLD | Starting SQLite load process")
 
     for file in json_files:
         try:
             data = json.loads(file.read_text(encoding="utf-8"))
+            hash_input = f"{data['job_title']}|{data['company']}|{data['description']}"
+            content_hash = hashlib.sha256(hash_input.encode()).hexdigest()
 
-            cursor.execute("""
-                INSERT OR IGNORE INTO jobs (source_id, job_title, company, description)
-                VALUES (?, ?, ?, ?)
-            """, (
+            cursor.execute(load_sql("queries/insert_job.sql"), (
                 data["source_id"],
                 data["job_title"],
                 data["company"],
-                data["description"]
+                data["description"],
+                content_hash,
+                None
             ))
 
             if cursor.rowcount == 0:
-                print(f"⏭️ Skipped (duplicate): {file.name}")
+                logging.warning(f"GOLD | ⏭️ Skipped duplicate record: {file.name}")
                 skipped += 1
             else:
-                print(f"✅ Inserted: {file.name}")
+                logging.info(f"GOLD | ✅ Inserted: {file.name}")
                 inserted += 1
 
         except Exception as e:
-            print(f"❌ Failed: {file.name} | {e}")
+            logging.error(f"GOLD | ❌ Failed to process {file.name} | {e}")
+
 
     conn.commit()
     conn.close()
 
     print("\n📊 Gold Summary:")
-    print(f"Total: {total} | Inserted: {inserted} | Skipped: {skipped}")
+    print(f"Total: {total} | Inserted: {inserted} | Skipped: {skipped} \n\n")

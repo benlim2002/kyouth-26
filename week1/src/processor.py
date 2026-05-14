@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from pathlib import Path
 from bs4 import BeautifulSoup
 import json
+import logging
 
 class JobListing(BaseModel):
     source_id: str
@@ -32,7 +33,7 @@ def process_all_html(input_dir, output_dir):
     processed = 0
     skipped = 0
 
-    print("🥈 Silver:...")
+    logging.info("🥈 SILVER | Starting HTML processing")
 
     for file in files:
         html = file.read_text(encoding="utf-8", errors="ignore") #put ignore due to some files not in utf-8 format
@@ -58,7 +59,7 @@ def process_all_html(input_dir, output_dir):
             missing.append("description")
 
         if missing or not source_id:
-            print(f"⚠️ Missing {', '.join(missing)} in: {file.name}")
+            logging.warning(f"SILVER | ⚠️ Missing fields {missing} in: {file.name}")
             skipped += 1
             continue
 
@@ -76,8 +77,8 @@ def process_all_html(input_dir, output_dir):
             encoding="utf-8"
         )
 
-        print(f"✅ Processed: {file.name}")
+        logging.info(f"SILVER | ✅ Processed file: {file.name}")
         processed += 1
 
     print("\n📊 Silver Summary:")
-    print(f"Total: {total} | Processed: {processed} | Skipped: {skipped}")
+    print(f"Total: {total} | Processed: {processed} | Skipped: {skipped} \n\n")

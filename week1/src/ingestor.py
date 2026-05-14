@@ -1,19 +1,21 @@
 from pathlib import Path
 import email
 import quopri
+import logging
+
 
 # igest mhtml files and extract html content
 def ingest_all_mhtml(input_dir, output_dir):
     input_dir = Path(input_dir)
     output_dir = Path(output_dir)
 
-    print("🥉 Bronze:...")
+    logging.info("🥉 Bronze: Starting MHTML ingestion")
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if not input_dir.exists():
-        print("📊 Bronze Summary:")
-        print("Total: 0 | Extracted: 0 | Failed: 0")
+        logging.warning("⚠️ Input directory does not exist")
+        logging.info("📊 Bronze Summary: Total: 0 | Extracted: 0 | Failed: 0")
         return
 
     files = list(input_dir.glob("*.mhtml"))
@@ -23,8 +25,7 @@ def ingest_all_mhtml(input_dir, output_dir):
     failed = 0
 
     if not files:
-        print("\n⚠️ No MHTML files found in input directory.") # just to be safe
-        print("\nFailed due to no files found.")
+        logging.warning("⚠️ No MHTML files found in input directory")
         return
 
     for file in files:
@@ -39,7 +40,7 @@ def ingest_all_mhtml(input_dir, output_dir):
                 break
 
         if not html:
-            print(f"⚠️ No HTML content found in: {file.name}")
+            logging.warning(f" ⚠️ No HTML content found in: {file.name}")
             failed += 1
             continue
 
@@ -51,8 +52,8 @@ def ingest_all_mhtml(input_dir, output_dir):
         output_file = output_dir / file.with_suffix(".html").name
         output_file.write_bytes(html)
 
-        print(f"✅ Extracted: {file.name}")
+        logging.info(f"Extracted: {file.name}")
         extracted += 1
 
     print("\n📊 Bronze Summary:")
-    print(f"Total: {total} | Extracted: {extracted} | Failed: {failed}")
+    print(f"Total: {total} | Extracted: {extracted} | Failed: {failed} \n\n")

@@ -4,7 +4,12 @@ from src.ingestor import ingest_all_mhtml
 from src.processor import process_all_html
 from src.loader import load_all_jsons
 from src.profiler import run_data_profile
-#from src.run_data_profile import run_data_profile
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s"
+)
 
 SOURCE_DIR = Path("data/0_source")
 BRONZE_DIR = Path("data/1_bronze")
@@ -47,6 +52,11 @@ def main():
         case "load":
             run_gold()
         case "profile":
+            run_profiler()
+        case "all":
+            run_bronze()
+            run_silver()
+            run_gold()
             run_profiler()
         case _:
             print("Unknown command:", command)
