@@ -238,8 +238,8 @@ Batch processing in `tag_data.py` is main point to the design.
 For skill gap detection, the key design decision was to isolate LLM usage to the resume extraction step only, then perform all matching deterministically.
 
 ### Trade-offs
-Speed vs. reliability: While adding retry delays increases overall runtime, this was a conscious decision to prioritise data integrity over throughput.
-Accuracy vs. determinism: A fully LLM-driven approach to gap detection would handle semantic equivalence better, for example, recognising sklearn and scikit-learn as the same library. However, non-deterministic outputs make it difficult to validate or reason about results consistently, so a rule-based matching step was used instead to guarantee reproducibility, even at the cost of some precision.
+- Speed vs. reliability: While adding retry delays increases overall runtime, this was a conscious decision to prioritise data integrity over throughput.
+- Accuracy vs. determinism: A fully LLM-driven approach to gap detection would handle semantic equivalence better, for example, recognising sklearn and scikit-learn as the same library. However, non-deterministic outputs make it difficult to validate or reason about results consistently, so a rule-based matching step was used instead to guarantee reproducibility, even at the cost of some precision.
 
 
 ### Improvements
