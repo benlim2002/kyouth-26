@@ -60,79 +60,80 @@ def tag_data(db_url: str, model: str = "gemini-2.5-flash"):
     start_time = time.time()
     total_tokens = 0
 
-    #Fetch untagged rows
     try:
-        conn = sqlite3.connect(db_url)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT source_id, description FROM jobs WHERE tech_stack IS NULL OR tech_stack = ''"
-        )
-        rows = [dict(row) for row in cur.fetchall()]
+        with sqlite3.connect(db_url) as conn:  # Fix #4: context manager
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT source_id, description FROM jobs WHERE tech_stack IS NULL OR tech_stack = ''"
+            )
+            rows = [dict(row) for row in cur.fetchall()]
+
+            if not rows:
+                print("No data to tag")
+                elapsed = (time.time() - start_time) * 1000
+                print(f"Total tokens used: 0, took {elapsed:.3f}ms")
+                return 0, elapsed
+
+            for batch_num in range(0, len(rows), BATCH_SIZE):
+                batch = rows[batch_num: batch_num + BATCH_SIZE]
+                remaining = {job["source_id"]: job for job in batch}  # Fix #2: track remaining
+
+                for attempt in range(1, RETRY_LIMIT + 1):
+                    if not remaining:
+                        break
+
+                    prompt = build_prompt(list(remaining.values()))
+
+                    try:
+                        response_text, tokens = prompt_model(model, prompt)  # Fix #5: real tokens
+                        total_tokens += tokens
+
+                        if response_text.startswith("["):
+                            raise RuntimeError(response_text)
+
+                        results = parse_response(response_text, list(remaining.keys()))
+
+                        # Write successful results immediately  # Fix #2: partial writes
+                        for source_id, tech_stack in results.items():
+                            try:
+                                cur.execute(
+                                    "UPDATE jobs SET tech_stack = ? WHERE source_id = ?",
+                                    (tech_stack, source_id),
+                                )
+                                conn.commit()
+                                print(f"Analyzed Job {source_id}: {tech_stack}")
+                                remaining.pop(source_id, None)  # Remove from retry pool
+                            except Exception as e:
+                                print(f"[DB Error] Failed to update job {source_id}: {e}")
+
+                        if remaining:
+                            print(
+                                f"[Batch {batch_num // BATCH_SIZE}] Attempt {attempt}: "
+                                f"{len(remaining)} job(s) still missing, retrying..."
+                            )
+                            if attempt < RETRY_LIMIT:
+                                time.sleep(RETRY_DELAY)
+
+                    except Exception as e:
+                        print(f"[Batch {batch_num // BATCH_SIZE}] Attempt {attempt} failed: {e}")
+                        if attempt < RETRY_LIMIT:
+                            time.sleep(RETRY_DELAY)
+
+                for source_id in remaining:
+                    print(f"[Warning] Could not parse tech stack for Job {source_id}, skipping.")
+                    try:
+                        cur.execute(
+                            "UPDATE jobs SET tech_stack = ? WHERE source_id = ?",
+                            ("N/A", source_id),
+                        )
+                        conn.commit()
+                    except Exception as e:
+                        print(f"[DB Error] Failed to set N/A for job {source_id}: {e}")
+
     except Exception as e:
         print(f"[DB Error] Failed to read database: {e}")
         return 0, 0
-
-    if not rows:
-        print("No data to tag")
-        elapsed = (time.time() - start_time) * 1000
-        print(f"Total tokens used: 0, took {elapsed:.3f}ms")
-        return 0, elapsed
-
-    #Process in batches
-    for batch_num in range(0, len(rows), BATCH_SIZE):
-        batch = rows[batch_num: batch_num + BATCH_SIZE]
-        expected_ids = [job["source_id"] for job in batch]
-        prompt = build_prompt(batch)
-
-        results = {}
-        for attempt in range(1, RETRY_LIMIT + 1):
-            try:
-                response_text = prompt_model(model, prompt)
-
-                #Check if prompt_model returned an error string
-                if response_text.startswith("["):
-                    raise RuntimeError(response_text)
-
-                #Estimate tokens (fallback since prompt_model returns plain string)
-                total_tokens += estimate_tokens(prompt) + estimate_tokens(response_text)
-
-                results = parse_response(response_text, expected_ids)
-
-                if len(results) != len(batch):
-                    print(
-                        f"[Batch {batch_num // BATCH_SIZE}] Attempt {attempt} failed: "
-                        f"Mismatch between batch size and response"
-                    )
-                    if attempt < RETRY_LIMIT:
-                        time.sleep(RETRY_DELAY)
-                    continue
-
-                break  # success
-
-            except Exception as e:
-                print(f"[Batch {batch_num // BATCH_SIZE}] Attempt {attempt} failed: {e}")
-                if attempt < RETRY_LIMIT:
-                    time.sleep(RETRY_DELAY)
-
-        # Write results to DB
-        for source_id, tech_stack in results.items():
-            try:
-                cur.execute(
-                    "UPDATE jobs SET tech_stack = ? WHERE source_id = ?",
-                    (tech_stack, source_id),
-                )
-                conn.commit()
-                print(f"Analyzed Job {source_id}: {tech_stack}")
-            except Exception as e:
-                print(f"[DB Error] Failed to update job {source_id}: {e}")
-
-        # Log any jobs that couldn't be parsed
-        missing = set(expected_ids) - set(results.keys())
-        for source_id in missing:
-            print(f"[Warning] Could not parse tech stack for Job {source_id}, skipping.")
-
-    conn.close()
 
     elapsed = (time.time() - start_time) * 1000
     print(f"Total tokens used: {total_tokens}, took {elapsed:.3f}ms")
