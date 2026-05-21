@@ -68,7 +68,7 @@ def prompt_google(model: str, prompt: str) -> str:
             model=model,
             contents=prompt,
             config=types.GenerateContentConfig(
-                temperature=0.7
+                temperature=0.1   #test for more deterministic
             )
         )
 
