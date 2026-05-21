@@ -43,9 +43,7 @@ def parse_response(response_text: str, expected_ids: list[str]) -> dict[str, str
             source_id = id_part.replace("JOB_ID:", "").strip()
             tech_stack = tech_part.replace("TECH:", "").strip()
             if source_id in expected_ids and tech_stack:  # check for empty tech stack upon parsing back to db 
-                results[source_id] = tech_stack
-            else:
-                results[source_id] = "N/A"
+                results[source_id] = tech_stack if tech_stack else "N/A"
         except Exception:
             continue
     return results
