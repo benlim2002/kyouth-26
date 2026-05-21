@@ -13,17 +13,18 @@ RETRY_DELAY = 5
 
 
 def build_prompt(jobs: list[dict]) -> str:
-    """Build a batched prompt for a list of jobs."""
     lines = []
     for job in jobs:
         lines.append(f"JOB_ID: {job['source_id']}")
         lines.append(f"DESCRIPTION: {job['description'][:1000]}")
         lines.append("")
-
     prompt = (
         "You are a technical recruiter assistant. "
-        "For each job below, extract a comma-separated list of technical skills, tools, and frameworks "
-        "mentioned or strongly implied in the description. Be concise. No explanations.\n\n"
+        "For each job below, extract a comma-separated list of technical skills, tools, frameworks, and programming languages "
+        "mentioned or strongly implied in the description. Be concise. No explanations.\n"
+        "Use official standardized names (e.g. 'Spring Boot' not 'Spring Framework/Spring Boot', 'PostgreSQL' not 'relational databases'). "
+        "Do not combine multiple skills into one entry. "
+        "Exclude job responsibilities, soft skills, and vague terms like 'design', 'deployment', 'security', 'testing'.\n\n"
         "Respond ONLY in this exact format, one line per job:\n"
         "JOB_ID: <id> | TECH: <comma separated skills>\n\n"
         + "\n".join(lines)
@@ -143,26 +144,7 @@ def tag_data(db_url: str, model: str = "gemini-2.5-flash"):
 if __name__ == "__main__":
     db_path = sys.argv[1] if len(sys.argv) > 1 else "data/jobs_d1.db"
 
-    print("Select a model:")
-    print("  1. gemini-2.5-flash")
-    print("  2. gemini-2.5-flash-lite")
-    print("  3. gemini-3-flash-preview")
-    print("  4. llama3.1")
-    print("  5. phi3")
-    print("  6. deepseek-r1:1.5b")
-
-    choice = input("Enter choice (1-6): ").strip()
-
-    models = {
-        "1": "gemini-2.5-flash",
-        "2": "gemini-2.5-flash-lite",
-        "3": "gemini-3-flash-preview",
-        "4": "llama3.1",
-        "5": "phi3",
-        "6": "deepseek-r1:1.5b",
-    }
-
-    selected_model = models.get(choice, "gemini-2.5-flash")
+    selected_model = "llama3.1"
     print(f"Using model: {selected_model}\n")
 
     tag_data(db_path, selected_model)

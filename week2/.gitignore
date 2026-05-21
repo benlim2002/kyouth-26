@@ -1,0 +1,7 @@
+data/
+src/__pycache__/
+.ruff_cache/
+.venv/
+.vscode/
+.env
+__pycache__/
