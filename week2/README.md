@@ -244,5 +244,5 @@ Accuracy vs. determinism: A fully LLM-driven approach to gap detection would han
 
 ### Improvements
 - Synonym normalisation: Maintain a canonical skills dictionary (e.g., `sklearn → scikit-learn`) to eliminate duplicate gap entries caused by naming inconsistencies across job postings.
-- Structured output / JSON mode: Use Gemini's native JSON output mode or tool-use to enforce structured responses, eliminating the need for regex parsing and reducing malformed response retries.
+- Structured output / JSON mode: Use Gemini's native JSON output mode or tool-use to enforce structured responses.
 - Hardcoding: Currently the deterministic of the outputs are hardcoded and rule-based.
