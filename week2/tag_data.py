@@ -56,7 +56,7 @@ def estimate_tokens(text: str) -> int:
 
 
 # Get untagged jobs
-def tag_data(db_url: str, model: str = "gemini-2.5-flash"):
+def tag_data(db_url: str, model: str):
 
     start_time = time.time()
     total_tokens = 0
