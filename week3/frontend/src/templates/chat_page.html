@@ -3,17 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
+  <title>Resume Helper Chatbot</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      min-height: 50vh;
+      height: 100vh;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       background: #3d3d3d;
     }
+
+    #chat-history { flex: 1; overflow-y: auto; }
 
     .container {
       text-align: center;
@@ -28,8 +32,57 @@
   </style>
 </head>
 <body>
+
+  <div id = "chat-history" class="p-3 d-flex flex-column gap-2">
+  </div>
+
+  <div class = "border-top p-3">
+    <div class="mb-2">
+      <input type="file" id="pdf-input" accept=".pdf" class="form-control">
+    </div>
+    <div class="d-flex gap-2">
+      <input type="text" id="user-input" class="form-control" placeholder="Type a message...">
+      <button id="send-btn" class="btn btn-primary">Send</button>
+    </div>
+  </div>
+
+  <script type = "module">
+    import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.min.mjs';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs';
+
+    const BACKEND_URL = "{{ backend_url }}";
+
+    const history  = document.getElementById('chat-history');
+    const input    = document.getElementById('user-input');
+    const sendBtn  = document.getElementById('send-btn');
+    const pdfInput = document.getElementById('pdf-input');
+
+    let pdfText = null;
+
+    pdfInput.addEventListener('change', async () => {
+      const file = pdfInput.files[0];
+      if (!file) return;
+      const buffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+      let text = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(s => s.str).join(' ') + '\n';
+      }
+      pdfText = text;
+    });
+
+    sendBtn.addEventListener('click', sendMessage);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    async function sendMessage() {
+      // end for now 
+    }
   <div class="container">
-    <h1>Hello, World!</h1>
+    <h1>Resume Helper Chatbot</h1>
   </div>
 </body>
 </html>
