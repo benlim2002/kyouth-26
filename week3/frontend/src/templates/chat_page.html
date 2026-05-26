@@ -5,22 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Resume Helper Chatbot</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      height: 100vh;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      overflow-y: auto;
       background: #3d3d3d;
-    }
-
-    #chat-history { flex: 1; overflow-y: auto; }
-
-    .container {
-      text-align: center;
     }
 
     h1 {
@@ -29,20 +24,96 @@
       letter-spacing: 0.05em;
     }
 
+    #company-chart-wrapper {
+      overflow-y: auto;
+      max-height: 300px;
+    }
+
+    #chat-history { flex: 1; overflow-y: auto; }
+
+    .chat-wrapper {
+      width: 100%;
+      max-width: 700px;
+      height: 70vh;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .container {
+      text-align: center;
+    }
+
+    .input-area {
+      border-top: 1px solid #ccc;
+    }
+
+    body { min-height: 100vh; justify-content: flex-start; padding: 2rem 1rem; gap: 2rem; }
+    .dashboard { width: 100%; max-width: 700px; }
+    .dashboard h2 { color: #e8e8e8; font-size: 1.4rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #555; }
+    .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .card { background: #fff; border-radius: 8px; padding: 1rem; }
+    .card h6 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin-bottom: 0.75rem; }
+    .filter-card { background: #fff; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+    #job-results { max-height: 220px; overflow-y: auto; margin-top: 0.75rem; }
+    .job-item { border-bottom: 1px solid #eee; padding: 0.5rem 0; font-size: 0.85rem; }
+    .job-item:last-child { border-bottom: none; }
+    .job-item strong { display: block; }
+    .job-item span { color: #888; font-size: 0.75rem; }
+    .badge-tech { display: inline-block; background: #e8f4ff; color: #0d6efd; border-radius: 4px; padding: 1px 6px; font-size: 0.7rem; margin: 2px 2px 0 0; }
+      
   </style>
+
 </head>
 <body>
-
-  <div id = "chat-history" class="p-3 d-flex flex-column gap-2">
+  <div class="container">
+    <h1>Resume Chatbot</h1>
   </div>
 
-  <div class = "border-top p-3">
-    <div class="mb-2">
-      <input type="file" id="pdf-input" accept=".pdf" class="form-control">
+  <div class="chat-wrapper">
+    <div id = "chat-history" class="p-3 d-flex flex-column gap-2">
     </div>
-    <div class="d-flex gap-2">
-      <input type="text" id="user-input" class="form-control" placeholder="Type a message...">
-      <button id="send-btn" class="btn btn-primary">Send</button>
+    <div class = "border-top p-3">
+      <div class="mb-2">
+        <input type="file" id="pdf-input" accept=".pdf" class="form-control">
+      </div>
+      <div class="d-flex gap-2">
+        <input type="text" id="user-input" class="form-control" placeholder="Type a message...">
+        <button id="send-btn" class="btn btn-primary">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard">
+  <h2>Job Market Dashboard</h2>
+    <div class="filter-card">
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-sm btn-outline-primary filter-btn active" data-filter="">All</button>
+        <button class="btn btn-sm btn-outline-primary filter-btn" data-filter="AI,LLM,Gen AI,Machine Learning">AI / ML</button>
+        <button class="btn btn-sm btn-outline-primary filter-btn" data-filter="Python,SQL,ETL,Spark">Data Engineer</button>
+        <button class="btn btn-sm btn-outline-primary filter-btn" data-filter="React,Node,JavaScript,Full Stack">Full Stack</button>
+        <button class="btn btn-sm btn-outline-primary filter-btn" data-filter="SQL,Power BI,Tableau,Analytics">Data Analyst</button>
+        <button class="btn btn-sm btn-outline-primary filter-btn" data-filter="SIEM,SOAR,Cyber,Security">Cyber Security</button>
+        <button class="btn btn-sm btn-outline-primary filter-btn" data-filter="AWS,Azure,GCP,cloud">Cloud</button>
+      </div>
+      <div id="job-results">
+        <div id="dashboard-status" style="color:#aaa;font-size:0.8rem;text-align:center;padding:1rem;">Connect backend to load job data</div>
+      </div>
+    </div>
+    <div class="dashboard-grid">
+      <div class="card">
+        <h6>Tech Stack Distribution</h6>
+        <canvas id="tech-chart"></canvas>
+      </div>
+      <div class="card">
+        <h6>Jobs per Company</h6>
+        <div id="company-chart-wrapper">
+          <canvas id="company-chart"></canvas>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -79,10 +150,146 @@
     });
 
     async function sendMessage() {
-      // end for now 
+      const text = input.value.trim();
+      if (!text) return;
+
+      appendMessage('You', text);
+      input.value = '';
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, pdf_text: pdfText })
+        });
+        const data = await res.json();
+        appendMessage('Bot', data.response ?? JSON.stringify(data));
+      } catch (err) {
+        appendMessage('Error', err.message);
+      }
+
+      pdfText = null;
+      pdfInput.value = '';
     }
-  <div class="container">
-    <h1>Resume Helper Chatbot</h1>
-  </div>
+
+    function appendMessage(sender, text) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `d-flex ${sender === 'You' ? 'justify-content-end' : 'justify-content-start'}`;
+
+      const div = document.createElement('div');
+      div.className = 'rounded p-2';
+      div.style.maxWidth = '75%';
+      div.style.background = sender === 'You' ? '#fd0d55' : '#e9ecef';
+      div.style.color = sender === 'You' ? '#fff' : '#000';
+      div.textContent = text;
+
+      wrapper.appendChild(div);
+      history.appendChild(wrapper);
+      history.scrollTop = history.scrollHeight;
+    }
+
+    // dashboard logic
+    let allJobs = [];
+    let techChart = null;
+    let companyChart = null;
+
+    async function loadJobs() {
+      try {
+        const res = await fetch(`${BACKEND_URL}/jobs`);
+        if (!res.ok) throw new Error('not ok');
+        allJobs = await res.json();
+        document.getElementById('dashboard-status').style.display = 'none';
+        renderCharts(allJobs);
+        renderJobList(allJobs);
+      } catch {
+      }
+    }
+
+    function renderCharts(jobs) {
+      const techCount = {};
+      jobs.forEach(job => {
+        if (!job.tech_stack) return;
+        job.tech_stack.split(',').forEach(t => {
+          const tech = t.trim();
+          if (tech) techCount[tech] = (techCount[tech] || 0) + 1;
+        });
+      });
+      const topTech = Object.entries(techCount).sort((a,b) => b[1]-a[1]).slice(0, 6);
+
+      if (techChart) techChart.destroy();
+      techChart = new Chart(document.getElementById('tech-chart'), {
+        type: 'pie',
+        data: {
+          labels: topTech.map(t => t[0]),
+          datasets: [{ data: topTech.map(t => t[1]), backgroundColor: ['#fd0d55','#6610f2','#0dcaf0','#198754','#ffc107','#0d6efd'] }]
+        },
+        options: { plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
+      });
+
+      const companyCount = {};
+      jobs.forEach(job => {
+        const c = job.company || 'Unknown';
+        companyCount[c] = (companyCount[c] || 0) + 1;
+      });
+      const topCompanies = Object.entries(companyCount).sort((a,b) => b[1]-a[1]);
+      const companyCanvas = document.getElementById('company-chart');
+      companyCanvas.style.height = `${topCompanies.length * 25}px`;
+      companyCanvas.style.width = '100%';
+
+
+      if (companyChart) companyChart.destroy();
+      companyChart = new Chart(document.getElementById('company-chart'), {
+        type: 'bar',
+        data: {
+          labels: topCompanies.map(c => c[0]),
+          datasets: [{ label: 'Jobs', data: topCompanies.map(c => c[1]), backgroundColor: '#fd0d55' }]
+        },
+        options: {
+          indexAxis: 'y',
+          plugins: { legend: { display: false } },
+          scales: { 
+            x: { ticks: { stepSize: 1 } },
+            y: { ticks: { font: { size: 10 } } }
+          },
+          maintainAspectRatio: false,
+        }
+      });
+    }
+
+    function renderJobList(jobs) {
+      const container = document.getElementById('job-results');
+      if (jobs.length === 0) {
+        container.innerHTML = '<div class="job-item" style="color:#888">No results found</div>';
+        return;
+      }
+      container.innerHTML = jobs.slice(0, 20).map(job => `
+        <div class="job-item">
+          <strong>${job.job_title}</strong>
+          <span>${job.company}</span>
+          <div>${(job.tech_stack || '').split(',').map(t => t.trim()).filter(Boolean).map(t => `<span class="badge-tech">${t}</span>`).join('')}</div>
+        </div>
+      `).join('');
+    }
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const filter = btn.dataset.filter;
+        const filtered = filter
+          ? (() => {
+              const keywords = filter.split(',').map(k => k.trim().toLowerCase());
+              return allJobs.filter(j =>
+                keywords.some(k => (j.tech_stack || '').toLowerCase().includes(k))
+              );
+            })()
+          : allJobs;
+        renderJobList(filtered);
+      });
+    });
+
+    loadJobs();
+  </script>
+
 </body>
 </html>
