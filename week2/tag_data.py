@@ -20,11 +20,30 @@ def build_prompt(jobs: list[dict]) -> str:
         lines.append("")
     prompt = (
         "You are a technical recruiter assistant. "
-        "For each job below, extract a comma-separated list of technical skills, tools, frameworks, and programming languages "
-        "mentioned or strongly implied in the description. Be concise. No explanations.\n"
-        "Use official standardized names (e.g. 'Spring Boot' not 'Spring Framework/Spring Boot', 'PostgreSQL' not 'relational databases'). "
-        "Do not combine multiple skills into one entry. "
-        "Exclude job responsibilities, soft skills, and vague terms like 'design', 'deployment', 'security', 'testing'.\n\n"
+        "For each job below, extract a comma-separated list of technical skills, tools, frameworks, databases, cloud platforms, and programming languages "
+        "mentioned or strongly implied in the description.\n\n"
+
+        "Rules:\n"
+        "- Be concise.\n"
+        "- No explanations.\n"
+        "- Use official standardized names.\n"
+        "- Do not combine multiple skills into one entry.\n"
+        "- Exclude job responsibilities, soft skills, and vague terms like "
+        "'design', 'deployment', 'security', 'testing'.\n"
+
+        "- Avoid redundant parent/general terms when a more specific technology is present.\n"
+        "  Examples:\n"
+        "  * Output 'PostgreSQL' and 'MySQL', but NOT 'SQL'.\n"
+        "  * Output 'Spring Boot', but NOT 'Spring Framework'.\n"
+        "  * Output 'React', but NOT 'JavaScript frameworks'.\n"
+        "  * Output 'AWS Lambda', but NOT 'AWS' unless AWS services in general are referenced.\n"
+
+        "- Deduplicate semantically overlapping technologies.\n"
+        "- Normalize synonymous or overlapping terms to a single standardized name.\n"
+        "- Prefer the most canonical industry-standard term.\n"
+        "- Avoid redundant parent categories when specific technologies exist.\n"
+        "- Preserve only the most specific meaningful term.\n\n"
+
         "Respond ONLY in this exact format, one line per job:\n"
         "JOB_ID: <id> | TECH: <comma separated skills>\n\n"
         + "\n".join(lines)
@@ -142,7 +161,7 @@ def tag_data(db_url: str, model: str):
 
 
 if __name__ == "__main__":
-    db_path = sys.argv[1] if len(sys.argv) > 1 else "data/jobs_d1.db"
+    db_path = sys.argv[1] if len(sys.argv) > 1 else "../week1/data/3_gold/jobs.db"
 
     selected_model = "llama3.1"
     print(f"Using model: {selected_model}\n")
