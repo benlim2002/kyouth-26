@@ -33,7 +33,9 @@ cd week3
 ### 2. Configure secrets
 
 This project uses Docker secrets. Create each secret with:
-
+```bash
+docker swarm init
+```
 ```bash
 echo "http://backend:8001" | docker secret create backend_url -
 echo "llama3.1" | docker secret create model -
@@ -61,7 +63,8 @@ cd week3
 ```
 
 ```bash
-docker compose up --build
+docker compose build
+docker stack deploy -c docker-compose.yml week3
 ```
 
 - Frontend: [http://localhost:8000](http://localhost:8000)
