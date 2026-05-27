@@ -8,7 +8,7 @@ WORKDIR /app
 # Copy dependency files first for layer caching
 COPY pyproject.toml .python-version ./
 
-# Install dependencies
+# Install dependenciescdcdcd
 RUN uv sync --no-dev
 
 # Copy source code

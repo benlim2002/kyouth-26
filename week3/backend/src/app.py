@@ -19,9 +19,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MODEL = os.getenv("MODEL", "gemini-2.5-flash")
-DB_PATH = os.getenv("DB_PATH", "C:\\Users\\benlc\\Desktop\\K-Youth\\kyouth-26\\week1\\data\\3_gold\\jobs.db")
-print(f"DB_PATH: {DB_PATH}")
+
+def read_secret(name, default=None):
+    try:
+        with open(f"/run/secrets/{name}") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return os.getenv(name.upper(), default)
+
+MODEL = read_secret("model", "llama3.1")
+DB_PATH = read_secret("db_path", "/data/jobs.db")
+OLLAMA_URL = read_secret("ollama_url", "http://host.docker.internal:11434/api/generate")
 
 class ChatRequest(BaseModel):
     message: str
@@ -29,7 +37,7 @@ class ChatRequest(BaseModel):
 
 
 @app.post("/chat")
-async def chat(req: ChatRequest):
+async def chat(req: ChatRequest): 
     prompt = req.message
     if req.pdf_text:
         prompt = f"The user has uploaded a resume/document:\n\n{req.pdf_text}\n\nUser message: {req.message}"

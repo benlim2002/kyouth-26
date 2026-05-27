@@ -9,46 +9,24 @@ load_dotenv()
 def estimate_tokens(text: str) -> int:
     return len(text.split()) * 4
 
-OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 
-_google_client = None
+def read_secret(name, default=None):
+    try:
+        with open(f"/run/secrets/{name}") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return os.getenv(name.upper(), default)
 
-def _get_google_client() -> genai.Client:
-    global _google_client
-    if _google_client is None:
-        api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key:
-            raise ValueError("GOOGLE_API_KEY environment variable not found.")
-        _google_client = genai.Client(api_key=api_key)
-    return _google_client
+MODEL = read_secret("model", "llama3.1")
+DB_PATH = read_secret("db_path", "/data/jobs.db")
+OLLAMA_URL = read_secret("ollama_url", "http://host.docker.internal:11434/api/generate")
 
-GOOGLE_MODELS = {
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-3-flash-preview"
-}
 
 OLLAMA_MODELS = {
     "llama3.1",
     "phi3",
     "deepseek-r1:1.5b"
 }
-
-def prompt_google(model: str, prompt: str) -> tuple[str, int]:
-    try:
-        client = _get_google_client()
-        response = client.models.generate_content(
-            model=model,
-            contents=prompt,
-            config=types.GenerateContentConfig(temperature=0.1)
-        )
-        tokens = 0
-        if response.usage_metadata:
-            tokens = (response.usage_metadata.prompt_token_count or 0) + \
-                     (response.usage_metadata.candidates_token_count or 0)
-        return response.text, tokens
-    except Exception as e:
-        return f"[Gemini Error] {str(e)}", 0
 
 def prompt_ollama(model: str, prompt: str) -> tuple[str, int]:
     try:
@@ -70,7 +48,5 @@ def prompt_ollama(model: str, prompt: str) -> tuple[str, int]:
 def prompt_model(model: str, prompt: str) -> tuple[str, int]:
     if model in OLLAMA_MODELS:
         return prompt_ollama(model, prompt)
-    elif model in GOOGLE_MODELS:
-        return prompt_google(model, prompt)
     else:
         return f"[Error] Unsupported model: {model}", 0
