@@ -11,6 +11,7 @@ services:
       - app-network
     depends_on:
       - backend
+    restart: "no"
 
   backend:
     image: backend
@@ -28,6 +29,7 @@ services:
       - ollama_url
     networks:
       - app-network
+    restart: "no"
 
 networks:
   app-network:
