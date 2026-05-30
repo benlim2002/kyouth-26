@@ -36,6 +36,10 @@ cd week3
 This project uses Docker secrets. Create each secret with:
 
 ```bash
+docker swarm init 
+```
+
+```bash
 echo "http://backend:8001" | docker secret create backend_url -
 echo "llama3.1" | docker secret create model -
 echo "/data/jobs.db" | docker secret create db_path -
@@ -65,15 +69,23 @@ cd week3
 docker stack deploy -c docker-compose.yml week3
 ```
 
-
-
 ```bash
-docker compose build
-docker stack deploy -c docker-compose.yml week3
+docker compose up --build
 ```
 
 - Frontend: [http://localhost:8000](http://localhost:8000)
 - Backend: [http://localhost:8001](http://localhost:8001)
+
+
+# IMPORTANT MAKE SURE TO LEAVE THE SWARM AND REMOVE THE SERVICE CONTAINER FORCEFULLY, ELSE IT WILL RESTART EVERYTIME YOU OPEN UP DOCKER
+1. 
+```bash 
+docker service rm week3_frontend
+```
+2. 
+```bash
+docker swarm leave --force
+```
 
 
 ### Run locally (without Docker)
