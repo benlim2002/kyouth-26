@@ -9,7 +9,7 @@ A full-stack containerized chat application that helps users analyze their resum
 The application consists of two services:
 
 - **Frontend** — FastAPI + Jinja2 serving a Bootstrap chat interface. Users can type messages and upload PDF resumes. Also displays a job market dashboard with charts and filters.
-- **Backend** — FastAPI exposing a `POST /chat` endpoint that processes user messages using llama3.1 via Ollama, and a `GET /jobs` endpoint that reads job data from a SQLite database.
+- **Backend** — FastAPI exposing a `POST /chat` and `POST /resume` endpoint that processes user messages using llama3.1 via Ollama, and a `GET /jobs` endpoint that reads job data from a SQLite database.
 
 ---
 
@@ -30,23 +30,7 @@ git clone <https://github.com/benlim2002/kyouth-26>
 cd week3
 ```
 
-### 2. Configure secrets
-
-
-This project uses Docker secrets. Create each secret with:
-
-```bash
-docker swarm init 
-```
-
-```bash
-echo "http://backend:8001" | docker secret create backend_url -
-echo "llama3.1" | docker secret create model -
-echo "/data/jobs.db" | docker secret create db_path -
-echo "http://host.docker.internal:11434/api/generate" | docker secret create ollama_url -
-```
-
-### 3. Start Ollama
+### 2. Start Ollama
 
 Make sure Ollama is running on your machine with llama3.1:
 
@@ -66,30 +50,15 @@ cd week3
 ```
 
 ```bash
-docker stack deploy -c docker-compose.yml week3
-```
-
-```bash
 docker compose up --build
 ```
-
 - Frontend: [http://localhost:8000](http://localhost:8000)
 - Backend: [http://localhost:8001](http://localhost:8001)
 
 
-# IMPORTANT MAKE SURE TO LEAVE THE SWARM AND REMOVE THE SERVICE CONTAINER FORCEFULLY, ELSE IT WILL RESTART EVERYTIME YOU OPEN UP DOCKER
-1. 
-```bash 
-docker service rm week3_frontend
-```
-2. 
-```bash
-docker swarm leave --force
-```
-
+# REMOVED USAGE OF DOCKER SWARM 
 
 ### Run locally (without Docker)
-*Prefer to not run locally since it will get messy, you need 2 terminals open why have 2 terminals open when u can have one ^-^*
 
 ```bash
 # Terminal 1 — Backend
@@ -104,6 +73,15 @@ uv run uvicorn --app-dir src --host 0.0.0.0 --port 8000 app:app
 ```
 
 ### Using the app
+
+## Compare Skill Gaps
+
+1. Open [http://localhost:8000](http://localhost:8000)
+2. Upload a resume in PDF format with some prompts and press **Send** or **Enter**
+3. Model will compare the skills found in resume to the ones in jobs.db
+
+
+## Normal Chat
 
 1. Open [http://localhost:8000](http://localhost:8000)
 2. Type a message in the chat input and press **Send** or **Enter**
@@ -134,6 +112,28 @@ Sends a user message to the LLM and returns a response.
 }
 ```
 
+
+
+### `POST /resume` Recently added
+
+Sends a json text extracted from uploaded pdf for LLM to compare it with the skills found in jobs.db.
+
+**Request:**
+```json
+{
+  "message": "What are my skill gaps",
+  "pdf_text": "Optional extracted text from uploaded PDF..."
+}
+```
+
+**Response:**
+```json
+{
+  "response": "Skill gaps found: ",
+  "tokens_used": 512
+}
+```
+
 ### `GET /jobs`
 
 Returns all job listings from the SQLite database.
@@ -155,7 +155,7 @@ Returns all job listings from the SQLite database.
 
 | Function | Description |
 |---|---|
-| `sendMessage()` | Reads user input, appends to chat, POSTs to `/chat`, renders response |
+| `sendMessage()` | Reads user input, based on inputs,appends to chat, POSTs to `/chat`, renders response or POSTs to `/resume` to find skill gaps |
 | `appendMessage(sender, text)` | Creates and appends a chat bubble to the history |
 | `loadJobs()` | Fetches job data from `/jobs` and renders charts and job list |
 | `renderCharts(jobs)` | Renders pie chart (tech stack) and bar chart (jobs per company) |
