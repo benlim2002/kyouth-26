@@ -179,25 +179,51 @@
       document.getElementById('typing-indicator')?.remove();
     }
 
+    // add this near the top with other let declarations
+    let conversationHistory = [];
+
     async function sendMessage() {
       const text = input.value.trim();
-      if (!text) return;
+      if (!text && !pdfText) return;
 
-      appendMessage('You', text);
+      appendMessage('You', text || '📎 Resume uploaded');
       input.value = '';
       sendBtn.disabled = true;
       sendBtn.textContent = '...';
       appendTyping();
 
       try {
-        const res = await fetch(`${BACKEND_URL}/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, pdf_text: pdfText })
-        });
-        const data = await res.json();
-        removeTyping();
-        appendMessage('Bot', data.response ?? JSON.stringify(data));
+        if (pdfText) {
+          // resume flow unchanged
+          const res = await fetch(`${BACKEND_URL}/resume`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pdf_text: pdfText })
+          });
+          const data = await res.json();
+          removeTyping();
+          const reply = data.gaps && data.gaps.length > 0
+            ? `**Skill Gaps Found:**\n${data.gaps.join(', ')}`
+            : 'No skill gaps found — your resume covers the job market well!';
+          appendMessage('Bot', reply);
+          conversationHistory.push({ role: 'user', content: text || 'Uploaded resume' });
+          conversationHistory.push({ role: 'assistant', content: reply });
+        } else {
+          // add user message to history
+          conversationHistory.push({ role: 'user', content: text });
+
+          const res = await fetch(`${BACKEND_URL}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text, history: conversationHistory })
+          });
+          const data = await res.json();
+          removeTyping();
+          appendMessage('Bot', data.response ?? JSON.stringify(data));
+
+          // add bot reply to history
+          conversationHistory.push({ role: 'assistant', content: data.response });
+        }
       } catch (err) {
         removeTyping();
         appendMessage('Error', err.message);

@@ -10,16 +10,9 @@ def estimate_tokens(text: str) -> int:
     return len(text.split()) * 4
 
 
-def read_secret(name, default=None):
-    try:
-        with open(f"/run/secrets/{name}") as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        return os.getenv(name.upper(), default)
-
-MODEL = read_secret("model", "llama3.1")
-DB_PATH = read_secret("db_path", "/data/jobs.db")
-OLLAMA_URL = read_secret("ollama_url", "http://host.docker.internal:11434/api/generate")
+MODEL = os.getenv("MODEL")
+DB_PATH = os.getenv("DB_PATH")
+OLLAMA_URL = os.getenv("OLLAMA_URL")
 
 
 OLLAMA_MODELS = {
