@@ -20,30 +20,17 @@ def build_prompt(jobs: list[dict]) -> str:
         lines.append("")
     prompt = (
         "You are a technical recruiter assistant. "
-        "For each job below, extract a comma-separated list of technical skills, tools, frameworks, databases, cloud platforms, and programming languages "
-        "mentioned or strongly implied in the description.\n\n"
-
+        "For each job below, extract ONLY concrete technical skills.\n\n"
         "Rules:\n"
-        "- Be concise.\n"
-        "- No explanations.\n"
-        "- Use official standardized names.\n"
-        "- Do not combine multiple skills into one entry.\n"
-        "- Exclude job responsibilities, soft skills, and vague terms like "
-        "'design', 'deployment', 'security', 'testing'.\n"
-
-        "- Avoid redundant parent/general terms when a more specific technology is present.\n"
-        "  Examples:\n"
-        "  * Output 'PostgreSQL' and 'MySQL', but NOT 'SQL'.\n"
-        "  * Output 'Spring Boot', but NOT 'Spring Framework'.\n"
-        "  * Output 'React', but NOT 'JavaScript frameworks'.\n"
-        "  * Output 'AWS Lambda', but NOT 'AWS' unless AWS services in general are referenced.\n"
-
-        "- Deduplicate semantically overlapping technologies.\n"
-        "- Normalize synonymous or overlapping terms to a single standardized name.\n"
-        "- Prefer the most canonical industry-standard term.\n"
-        "- Avoid redundant parent categories when specific technologies exist.\n"
-        "- Preserve only the most specific meaningful term.\n\n"
-
+        "- Output ONLY tools, frameworks, programming languages, databases, cloud platforms.\n"
+        "- NO soft skills, NO vague terms, NO job responsibilities.\n"
+        "- NO: 'REST API', 'CI/CD', 'Agile', 'DevOps', 'testing', 'deployment', 'design'.\n"
+        "- NO: 'machine learning' unless a specific ML framework is absent.\n"
+        "- USE canonical names: 'PostgreSQL' not 'postgres', 'Node.js' not 'nodejs'.\n"
+        "- USE: 'React', 'Vue', 'Angular' not 'JavaScript frameworks'.\n"
+        "- USE: 'AWS Lambda', 'AWS S3' not just 'AWS' unless general.\n"
+        "- Deduplicate: output each skill only once.\n"
+        "- Max 10 skills per job.\n\n"
         "Respond ONLY in this exact format, one line per job:\n"
         "JOB_ID: <id> | TECH: <comma separated skills>\n\n"
         + "\n".join(lines)
@@ -51,7 +38,37 @@ def build_prompt(jobs: list[dict]) -> str:
     return prompt
 
 
-# Parse back response into tech_stack according to their source_id
+SKILL_ALIASES = {
+    "restful api": "REST API",
+    "restful apis": "REST API",
+    "rest api development": "REST API",
+    "node.js": "Node.js",
+    "nodejs": "Node.js",
+    "reactjs": "React",
+    "react (v18+)": "React",
+    "vue.js": "Vue",
+    "postgresql": "PostgreSQL",
+    "postgres": "PostgreSQL",
+    "javascript/typescript": "TypeScript",
+    "pyspark/sparksql": "PySpark",
+    "spring framework": "Spring Boot",
+    "spring framework/spring boot": "Spring Boot",
+    "large language models": "LLM",
+    "llms": "LLM",
+    "generative ai": "Gen AI",
+    "nosql databases": "NoSQL",
+    "relational databases": "SQL",
+    "linux (rhel / centos / ubuntu)": "Linux",
+    "retrieval-augmented generation (rag)": "RAG",
+    "rag systems": "RAG",
+    "machine learning operations": "MLOps",
+    "google cloud": "GCP",
+}
+
+def normalize_skill(skill: str) -> str:
+    cleaned = skill.strip().lower()
+    return SKILL_ALIASES.get(cleaned, skill.strip())
+
 def parse_response(response_text: str, expected_ids: list[str]) -> dict[str, str]:
     results = {}
     for line in response_text.strip().splitlines():
@@ -62,8 +79,16 @@ def parse_response(response_text: str, expected_ids: list[str]) -> dict[str, str
             id_part, tech_part = line.split("|", 1)
             source_id = id_part.replace("JOB_ID:", "").strip()
             tech_stack = tech_part.replace("TECH:", "").strip()
-            if source_id in expected_ids and tech_stack:  # check for empty tech stack upon parsing back to db 
-                results[source_id] = tech_stack if tech_stack else "N/A"
+            if source_id in expected_ids and tech_stack:
+                seen = set()
+                cleaned = []
+                for skill in tech_stack.split(","):
+                    norm = normalize_skill(skill)
+                    key = norm.lower()
+                    if key and key not in seen:
+                        seen.add(key)
+                        cleaned.append(norm)
+                results[source_id] = ", ".join(cleaned) if cleaned else "N/A"
         except Exception:
             continue
     return results
