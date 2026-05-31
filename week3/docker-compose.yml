@@ -5,8 +5,8 @@ services:
       context: frontend
     ports:
       - "8000:8000"
-    secrets:
-      - backend_url
+    environment:
+      - BACKEND_URL=http://localhost:8001
     networks:
       - app-network
     depends_on:
@@ -20,27 +20,18 @@ services:
     ports:
       - "8001:8001"
     volumes:
+      - "./backend/src/week2:/app/src/week2"
       - "./backend/src/week2:/data"
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    secrets:
-      - model
-      - db_path
-      - ollama_url
+    environment:
+      - MODEL=llama3.1
+      - DB_PATH=/data/jobs.db
+      - OLLAMA_URL=http://host.docker.internal:11434/api/generate
     networks:
       - app-network
     restart: "no"
 
 networks:
   app-network:
-    driver: overlay
-
-secrets:
-  backend_url:
-    external: true
-  model:
-    external: true
-  db_path:
-    external: true
-  ollama_url:
-    external: true
+    driver: bridge

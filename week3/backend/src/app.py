@@ -6,11 +6,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from week2.prompt_model import prompt_model
+from week2.find_skill_gaps import find_skill_gaps, MODEL, DB_PATH
+import tempfile, os
 
 load_dotenv("../.env")
 
 
 app = FastAPI()
+
+class ResumeRequest(BaseModel):
+    pdf_text: str
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,28 +25,33 @@ app.add_middleware(
 )
 
 
-def read_secret(name, default=None):
-    try:
-        with open(f"/run/secrets/{name}") as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        return os.getenv(name.upper(), default)
-
-MODEL = read_secret("model", "llama3.1")
-DB_PATH = read_secret("db_path", "/data/jobs.db")
-OLLAMA_URL = read_secret("ollama_url", "http://host.docker.internal:11434/api/generate")
+MODEL = os.getenv("MODEL")
+DB_PATH = os.getenv("DB_PATH")
+OLLAMA_URL = os.getenv("OLLAMA_URL")
 
 class ChatRequest(BaseModel):
     message: str
+    history: list[dict] | None = None
     pdf_text: str | None = None
 
-
 @app.post("/chat")
-async def chat(req: ChatRequest): 
-    prompt = req.message
-    if req.pdf_text:
-        prompt = f"The user has uploaded a resume/document:\n\n{req.pdf_text}\n\nUser message: {req.message}"
-
+async def chat(req: ChatRequest):
+    history = req.history or []
+    
+    # build messages array with history
+    messages = []
+    for turn in history[:-1]:  # exclude last since we add it fresh
+        messages.append({"role": turn["role"], "content": turn["content"]})
+    
+    # add current message
+    messages.append({"role": "user", "content": req.message})
+    
+    # flatten to single prompt for ollama
+    prompt = "\n".join(
+        f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}"
+        for m in messages
+    ) + "\nAssistant:"
+    
     response, tokens = prompt_model(MODEL, prompt)
     return {"response": response, "tokens_used": tokens}
 
@@ -57,3 +67,29 @@ async def get_jobs():
         return jobs
     except Exception as e:
         return {"error": str(e)}
+    
+
+@app.post("/resume")
+async def resume(req: ResumeRequest):
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+        f.write(req.pdf_text)
+        tmp_path = f.name
+    try:
+        result = find_skill_gaps(tmp_path, DB_PATH, MODEL)
+        
+        # also summarize the resume via LLM
+        summary_prompt = (
+            "You are a helpful career assistant. "
+            "Summarize the following resume clearly and concisely. "
+            "Include: name, current role, years of experience, key skills, and notable achievements.\n\n"
+            f"RESUME:\n{req.pdf_text}"
+        )
+        summary, _ = prompt_model(MODEL, summary_prompt)
+        
+        return {
+            "gaps": result.gaps,
+            "tokens_used": result.tokens_used,
+            "summary": summary
+        }
+    finally:
+        os.unlink(tmp_path)
